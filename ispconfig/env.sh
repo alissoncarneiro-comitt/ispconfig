@@ -1,0 +1,4 @@
+export GDRIVE_REMOTE_NAME="gdrive"
+export GDRIVE_BACKUP_FOLDER="/backups/ispconfig"
+export BACKUP_SCRIPT="/opt/ispconfig-backup/backup-to-gdrive.sh"
+export INSTALL_FLAG="/opt/.ispconfig_installed"
