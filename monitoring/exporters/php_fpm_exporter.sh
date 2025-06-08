@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "📊 Instalando Exporter para PHP-FPM..."
+echo " Instalando Exporter para PHP-FPM..."
 cd /tmp
 curl -LO https://github.com/hipages/php-fpm_exporter/releases/download/v2.8.0/php-fpm_exporter_2.8.0_linux_amd64.tar.gz
 tar xvf php-fpm_exporter_2.8.0_linux_amd64.tar.gz

@@ -18,7 +18,7 @@ calculate_children() {
     echo $((mem / 100))
 }
 
-echo "🧩 Instalando dependências base..."
+echo " Instalando dependências base..."
 apt update
 apt install -y --no-install-recommends \
     software-properties-common curl lsb-release ca-certificates gnupg apt-transport-https \
@@ -28,13 +28,23 @@ apt install -y --no-install-recommends \
     libkrb5-dev libxml2-dev libmemcached-dev libevent-dev librdkafka-dev libsasl2-dev \
     php-pear php-dev php-igbinary php-msgpack
 
-echo "📦 Adicionando repositório SURY..."
-curl -fsSL https://packages.sury.org/php/apt.gpg | tee /etc/apt/trusted.gpg.d/php.gpg > /dev/null
-echo "deb https://packages.sury.org/php $(lsb_release -cs) main" > /etc/apt/sources.list.d/php-sury.list
-apt update
+
+add_sury_repo_if_needed() {
+    if ! grep -q "packages.sury.org" /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null; then
+        echo " Adicionando repositório SURY (PHP)..."
+        apt install -y --no-install-recommends gnupg lsb-release curl ca-certificates apt-transport-https
+        curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg
+        echo "deb https://packages.sury.org/php $(lsb_release -cs) main" > /etc/apt/sources.list.d/php-sury.list
+        apt update
+    else
+        echo "✅ SURY já está configurado"
+    fi
+}
+
+add_sury_repo_if_needed
 
 for version in "${PHP_VERSIONS[@]}"; do
-    echo "📦 Instalando PHP $version e extensões..."
+    echo " Instalando PHP $version e extensões..."
     apt install -y --no-install-recommends php${version}-{${EXTENSIONS_COMMON[*]}} php${version}-{${EXTENSIONS_DB[*]}} php${version}-{${EXTENSIONS_CACHE[*]}} php${version}-{${EXTENSIONS_OTHER[*]}}
 
     update-alternatives --install /usr/bin/php php /usr/bin/php${version} ${version//./}
@@ -68,11 +78,11 @@ opcache.jit_buffer_size=64M
 EOF
         done
 
-        echo "🧪 Instalando extensões PECL para PHP $version..."
+        echo " Instalando extensões PECL para PHP $version..."
         for ext in "${PECL_EXTENSIONS[@]}"; do
             echo "➡️ Instalando $ext para PHP $version..."
-            if ! yes '' | pecl install -f "${ext}"; then
-                echo "❌ Falha ao instalar $ext para PHP $version" >&2
+            if ! printf "\n" | pecl install -f "${ext}" >/dev/null 2>&1; then
+                echo " PECL: Falha ao instalar $ext para PHP $version" >&2
                 continue
             fi
             ext_path="$(php-config${version} --extension-dir)/${ext}.so"
@@ -80,12 +90,12 @@ EOF
                 echo "extension=$ext.so" > "${INI_DIR}/${version}/mods-available/${ext}.ini"
                 phpenmod -v ${version} $ext || true
             else
-                echo "⚠️ Extensão $ext não encontrada, pode ter falhado no PECL."
+                echo " Extensão $ext não encontrada, pode ter falhado no PECL."
             fi
         done
 
         if [ "$INSTALL_IONCUBE" = "yes" ]; then
-            echo "🔐 Instalando ionCube Loader..."
+            echo " Instalando ionCube Loader..."
             IONCUBE_DIR="/opt/ioncube"
             mkdir -p "$IONCUBE_DIR"
             curl -fsSL https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz -o /tmp/ioncube.tar.gz
@@ -95,7 +105,7 @@ EOF
             phpenmod -v ${version} ioncube
         fi
 
-        echo "📂 Gerando pool socket ISPConfig para PHP $version..."
+        echo " Gerando pool socket ISPConfig para PHP $version..."
         children=$(calculate_children)
         MAX_CHILDREN=$children
         MAX_SPARE=$(( children / 2 ))
@@ -116,4 +126,4 @@ EOF
     apt purge -y build-essential pkg-config unzip autoconf automake libtool git cmake
     apt autoremove -y --purge && apt clean
 
-    echo "✅ PHP-FPM multi-versão + ISPConfig + PECL completo instalado!"
+    echo " PHP-FPM multi-versão + ISPConfig + PECL completo instalado!"

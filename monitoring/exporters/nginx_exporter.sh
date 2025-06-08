@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "📊 Instalando Exporter para NGINX..."
+echo " Instalando Exporter para NGINX..."
 cd /tmp
 curl -LO https://github.com/nginxinc/nginx-prometheus-exporter/releases/download/v0.11.0/nginx-prometheus-exporter_0.11.0_linux_amd64.tar.gz
 tar xvf nginx-prometheus-exporter_0.11.0_linux_amd64.tar.gz

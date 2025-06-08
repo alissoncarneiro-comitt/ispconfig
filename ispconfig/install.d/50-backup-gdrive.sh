@@ -2,7 +2,7 @@
     set -euo pipefail
     source /opt/ispconfig-env.sh
 
-    echo "💾 Instalando backup cron GDrive..."
+    echo "Instalando backup cron GDrive..."
     mkdir -p /opt/ispconfig-backup
 
     cat > "$BACKUP_SCRIPT" <<'EOS'
@@ -28,4 +28,4 @@ EOS
     delaycompress
 }
 EOF
-    echo "✅ Backup configurado."
+    echo "Backup configurado."

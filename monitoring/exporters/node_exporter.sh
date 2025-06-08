@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "📊 Instalando Node Exporter..."
+echo " Instalando Node Exporter..."
 useradd --no-create-home --shell /bin/false node_exporter || true
 
 cd /tmp

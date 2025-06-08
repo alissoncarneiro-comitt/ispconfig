@@ -1,15 +1,15 @@
-# 🔧 Infraestrutura Laravel com ISPConfig + NGINX Otimizado + PHP Multi-versão
+# Infraestrutura Laravel com ISPConfig + NGINX Otimizado + PHP Multi-versão
 
 Este projeto provisiona uma stack profissional de hospedagem em servidores Debian para aplicações Laravel, WordPress e sistemas PHP modernos, com foco em **performance**, **segurança** e **automação**.
 
 ---
 
-## 📄 PRD - Documento de Requisitos do Projeto
+## PRD - Documento de Requisitos do Projeto
 
 > **Objetivo:**  
 > Criar uma infraestrutura automatizada, escalável e performática para hospedar múltiplas aplicações PHP (Laravel, WordPress, SaaS), com suporte à gestão via ISPConfig e monitoramento integrado.
 
-### 🧩 Funcionalidades esperadas:
+### Funcionalidades esperadas:
 
 - ISPConfig configurado com pools PHP-FPM via socket e templates Laravel/WordPress
 - NGINX compilado com módulos essenciais de performance e segurança
@@ -20,7 +20,7 @@ Este projeto provisiona uma stack profissional de hospedagem em servidores Debia
 - Fail2Ban configurado para proteger o stack web
 - Arquitetura modular, com scripts reutilizáveis e separados por contexto
 
-### 🎯 Público-alvo:
+### Público-alvo:
 
 - DevOps/SREs que desejam infraestrutura sob controle com alto desempenho
 - Agências que hospedam múltiplos sites por cliente
@@ -29,7 +29,7 @@ Este projeto provisiona uma stack profissional de hospedagem em servidores Debia
 
 ---
 
-## ⚙️ Principais Tecnologias
+## Principais Tecnologias
 
 - **NGINX compilado** com Brotli, HTTP/3 (QUIC), GeoIP2, ngx_pagespeed, njs, headers-more
 - **PHP 8.2 / 8.3 / 8.4** via socket + `update-alternatives` + extensões PECL
@@ -40,7 +40,7 @@ Este projeto provisiona uma stack profissional de hospedagem em servidores Debia
 
 ---
 
-## 📁 Estrutura dos Diretórios
+## Estrutura dos Diretórios
 
 ```
 .
@@ -89,18 +89,18 @@ Este projeto provisiona uma stack profissional de hospedagem em servidores Debia
 
 ---
 
-## 🚀 Como usar
+## Como usar
 
 ```bash
 chmod +x bootstrap-install.sh
 sudo ./bootstrap-install.sh
 ```
 
-> 💡 O script detecta automaticamente Debian 11/12 e já aplica ajustes para produção.
+> O script detecta automaticamente Debian 11/12 e já aplica ajustes para produção.
 
 ---
 
-## ✅ Pré-requisitos
+## Pré-requisitos
 
 - Debian 11 ou 12 limpo
 - Usuário com permissões `sudo`
@@ -108,7 +108,7 @@ sudo ./bootstrap-install.sh
 
 ---
 
-## 🧠 Vantagens desta stack
+## Vantagens desta stack
 
 - Compatível com **Laravel**, **WordPress** e qualquer app PHP moderno
 - Backups automáticos no Google Drive com agendamento via `cron`
@@ -117,7 +117,7 @@ sudo ./bootstrap-install.sh
 
 ---
 
-## 🧪 Após instalação
+## Após instalação
 
 - Acesse o ISPConfig via: `https://<seu-ip-ou-dominio>:8080`
 - Crie seu site e escolha o **template NGINX Laravel** (adaptado com suporte a socket)
@@ -125,6 +125,6 @@ sudo ./bootstrap-install.sh
 
 ---
 
-## 👤 Autor
+## Autor
 
 Desenvolvido por **Alison Carneiro**

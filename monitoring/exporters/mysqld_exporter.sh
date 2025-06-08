@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "📊 Instalando Exporter para MariaDB..."
+echo " Instalando Exporter para MariaDB..."
 useradd -rs /bin/false mysqld_exporter || true
 
 cd /tmp

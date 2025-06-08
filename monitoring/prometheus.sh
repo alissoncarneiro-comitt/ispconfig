@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "🚀 Instalando Prometheus..."
+echo " Instalando Prometheus..."
 useradd --no-create-home --shell /bin/false prometheus || true
 mkdir -p /etc/prometheus /var/lib/prometheus
 

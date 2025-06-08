@@ -3,11 +3,11 @@ set -euo pipefail
 source /opt/ispconfig-env.sh
 
 if [[ -f "$INSTALL_FLAG" ]]; then
-  echo "🔄 ISPConfig já instalado, pulando etapa."
+  echo "ISPConfig já instalado, pulando etapa."
   exit 0
 fi
 
-echo "📥 Clonando autoinstaller ISPConfig..."
+echo "Clonando autoinstaller ISPConfig..."
 cd /tmp
 rm -rf ispconfig-autoinstaller
 git clone https://git.ispconfig.org/ispconfig/ispconfig-autoinstaller.git
@@ -41,10 +41,10 @@ use_lets_encrypt=y
 auto_configure_ssl=y
 EOF
 
-echo "🚀 Rodando autoinstaller..."
+echo "Rodando autoinstaller..."
 bash install.sh --autoinstall=autoinstall.ini
 
-echo "🧹 Limpando pools default..."
+echo "Limpando pools default..."
 for ver in 8.2 8.3 8.4; do
   rm -f /etc/php/${ver}/fpm/pool.d/www.conf || true
   systemctl restart php${ver}-fpm || true

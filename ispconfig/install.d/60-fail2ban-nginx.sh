@@ -1,7 +1,7 @@
     #!/usr/bin/env bash
     set -euo pipefail
 
-    echo "🛡️  Configurando Fail2Ban para NGINX req-limit..."
+    echo "Configurando Fail2Ban para NGINX req-limit..."
     cat > /etc/fail2ban/jail.d/nginx-custom.conf <<'EOF'
 [nginx-req-limit]
 enabled = true
@@ -20,4 +20,4 @@ ignoreregex =
 EOF
 
     systemctl restart fail2ban
-    echo "✅ Fail2Ban reiniciado."
+    echo "Fail2Ban reiniciado."

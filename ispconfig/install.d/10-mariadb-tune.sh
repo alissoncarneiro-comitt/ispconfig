@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-echo "🔧 Aplicando tuning MariaDB..."
+echo "Aplicando tuning MariaDB..."
 
 TUNE=/opt/50-server-optimized-32gb.cnf
 if [[ ! -f "$TUNE" ]]; then
-  echo "❌ Tuning file $TUNE ausente!" >&2
+  echo "Tuning file $TUNE ausente!" >&2
   exit 1
 fi
 
@@ -17,4 +17,4 @@ touch /var/log/mysql/slow.log
 chown mysql:mysql /var/log/mysql/slow.log
 
 systemctl restart mariadb
-echo "✅ MariaDB tunado & reiniciado."
+echo "MariaDB tunado & reiniciado."

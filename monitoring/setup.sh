@@ -12,4 +12,4 @@ bash "$DIR/exporters/php_fpm_exporter.sh"
 bash "$DIR/exporters/mysqld_exporter.sh"
 bash "$DIR/grafana.sh"
 
-echo "✅ Stack de monitoramento instalado com sucesso!"
+echo " Stack de monitoramento instalado com sucesso!"
