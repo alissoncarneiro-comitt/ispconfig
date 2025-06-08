@@ -5,55 +5,81 @@ set -o pipefail
 export DEBIAN_FRONTEND=noninteractive
 INSTALL_IONCUBE=${INSTALL_IONCUBE:-no}
 
+# Se quiser instalar Blackfire, exporte estas variáveis:
+# export BLACKFIRE_SERVER_ID=...
+# export BLACKFIRE_SERVER_TOKEN=...
+
 PHP_VERSIONS=(8.2 8.3 8.4)
-EXTENSIONS_COMMON=(bcmath gmp intl gd imagick mbstring xml soap zip curl fileinfo json opcache sodium cli common)
+EXTENSIONS_COMMON=(bcmath gmp intl gd mbstring xml soap zip curl fileinfo opcache cli common)
 EXTENSIONS_DB=(mysql pgsql sqlite3)
 EXTENSIONS_CACHE=(redis memcached)
 EXTENSIONS_OTHER=(fpm)
-PECL_EXTENSIONS=(xdebug swoole yaml rdkafka grpc mongodb apcu blackfire newrelic)
+# Removido blackfire do PECL. Se necessário, instale opcionalmente.
+PECL_EXTENSIONS=(xdebug swoole yaml rdkafka mongodb apcu newrelic)
 INI_DIR="/etc/php"
 
 calculate_children() {
-    local mem=$(free -m | awk '/Mem:/ {print $2}')
-    echo $((mem / 100))
+    local mem
+    mem=$(free -m | awk '/Mem:/ {print $2}')
+    echo $(( mem / 100 ))
 }
 
-echo " Instalando dependências base..."
+echo "➤ Instalando dependências base..."
 apt update
 apt install -y --no-install-recommends \
+    gettext-base \
     software-properties-common curl lsb-release ca-certificates gnupg apt-transport-https \
     build-essential pkg-config unzip autoconf automake libtool libssl-dev cmake git \
     libpcre3-dev libcurl4-openssl-dev libzip-dev zlib1g-dev libyaml-dev libonig-dev \
     libgmp-dev libicu-dev libjpeg-dev libpng-dev libwebp-dev libfreetype6-dev \
     libkrb5-dev libxml2-dev libmemcached-dev libevent-dev librdkafka-dev libsasl2-dev \
-    php-pear php-dev php-igbinary php-msgpack
-
+    libprotobuf-dev protobuf-compiler \
+    libsqlite3-dev libbrotli-dev libc-ares-dev \
+    php-pear php-igbinary php-msgpack
 
 add_sury_repo_if_needed() {
     if ! grep -q "packages.sury.org" /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null; then
-        echo " Adicionando repositório SURY (PHP)..."
+        echo "➤ Adicionando repositório SURY (PHP)..."
         apt install -y --no-install-recommends gnupg lsb-release curl ca-certificates apt-transport-https
-        curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg
-        echo "deb https://packages.sury.org/php $(lsb_release -cs) main" > /etc/apt/sources.list.d/php-sury.list
+        curl -fsSL https://packages.sury.org/php/apt.gpg \
+            | gpg --dearmor -o /etc/apt/trusted.gpg.d/php.gpg
+        echo "deb https://packages.sury.org/php $(lsb_release -cs) main" \
+            > /etc/apt/sources.list.d/php-sury.list
         apt update
     else
-        echo "✅ SURY já está configurado"
+        echo "✅ SURY já configurado"
     fi
 }
-
 add_sury_repo_if_needed
 
-for version in "${PHP_VERSIONS[@]}"; do
-    echo " Instalando PHP $version e extensões..."
-    apt install -y --no-install-recommends php${version}-{${EXTENSIONS_COMMON[*]}} php${version}-{${EXTENSIONS_DB[*]}} php${version}-{${EXTENSIONS_CACHE[*]}} php${version}-{${EXTENSIONS_OTHER[*]}}
+echo "➤ Instalando php-dev para compilação de PECL..."
+for v in "${PHP_VERSIONS[@]}"; do
+    apt install -y --no-install-recommends php${v}-dev
+done
 
+for version in "${PHP_VERSIONS[@]}"; do
+    echo "⦿ Instalando PHP $version + extensões APT..."
+
+    PACKAGES=()
+    for ext in "${EXTENSIONS_COMMON[@]}"; do
+        [[ "$ext" == "imagick" ]] && continue
+        PACKAGES+=("php${version}-$ext")
+    done
+    for ext in "${EXTENSIONS_DB[@]}" "${EXTENSIONS_CACHE[@]}" "${EXTENSIONS_OTHER[@]}"; do
+        PACKAGES+=("php${version}-$ext")
+    done
+    # instalando grpc via apt, imagick e grpc
+    PACKAGES+=("php-imagick" "php${version}-grpc")
+    apt install -y --no-install-recommends "${PACKAGES[@]}"
+
+    echo "⦿ Configurando alternativas para PHP $version..."
     update-alternatives --install /usr/bin/php php /usr/bin/php${version} ${version//./}
     update-alternatives --install /usr/bin/phpize phpize /usr/bin/phpize${version} ${version//./}
     update-alternatives --install /usr/bin/php-config php-config /usr/bin/php-config${version} ${version//./}
 
+    echo "⦿ Ajustando php.ini para PHP $version..."
     PHP_INI_FPM="${INI_DIR}/${version}/fpm/php.ini"
     PHP_INI_CLI="${INI_DIR}/${version}/cli/php.ini"
-
     for PHP_INI in "$PHP_INI_FPM" "$PHP_INI_CLI"; do
         [ -f "$PHP_INI" ] || continue
         sed -i 's/^memory_limit = .*/memory_limit = 512M/' "$PHP_INI"
@@ -64,8 +90,7 @@ for version in "${PHP_VERSIONS[@]}"; do
         sed -i 's/^;?expose_php = .*/expose_php = Off/' "$PHP_INI"
         sed -i 's/^;?display_errors = .*/display_errors = Off/' "$PHP_INI"
         sed -i 's/^;?log_errors = .*/log_errors = On/' "$PHP_INI"
-        sed -i 's/^;?error_log = .*/error_log = \/var\/log\/php\/php${version}-fpm.log/' "$PHP_INI"
-
+        sed -i "s~^;?error_log = .*~error_log = /var/log/php/php${version}-fpm.log~" "$PHP_INI"
         cat << EOF >> "$PHP_INI"
 
 [opcache]
@@ -76,54 +101,75 @@ opcache.interned_strings_buffer=16
 opcache.jit=1255
 opcache.jit_buffer_size=64M
 EOF
-        done
+    done
 
-        echo " Instalando extensões PECL para PHP $version..."
-        for ext in "${PECL_EXTENSIONS[@]}"; do
-            echo "➡️ Instalando $ext para PHP $version..."
-            if ! printf "\n" | pecl install -f "${ext}" >/dev/null 2>&1; then
-                echo " PECL: Falha ao instalar $ext para PHP $version" >&2
-                continue
-            fi
-            ext_path="$(php-config${version} --extension-dir)/${ext}.so"
-            if [ -f "$ext_path" ]; then
-                echo "extension=$ext.so" > "${INI_DIR}/${version}/mods-available/${ext}.ini"
-                phpenmod -v ${version} $ext || true
-            else
-                echo " Extensão $ext não encontrada, pode ter falhado no PECL."
-            fi
-        done
-
-        if [ "$INSTALL_IONCUBE" = "yes" ]; then
-            echo " Instalando ionCube Loader..."
-            IONCUBE_DIR="/opt/ioncube"
-            mkdir -p "$IONCUBE_DIR"
-            curl -fsSL https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz -o /tmp/ioncube.tar.gz
-            tar -xzf /tmp/ioncube.tar.gz -C /opt
-            cp "${IONCUBE_DIR}/ioncube/ioncube_loader_lin_${version}.so" "$(php-config${version} --extension-dir)/"
-            echo "zend_extension=ioncube_loader_lin_${version}.so" > "${INI_DIR}/${version}/mods-available/ioncube.ini"
-            phpenmod -v ${version} ioncube
+    echo "⦿ Instalando extensões PECL para PHP $version..."
+    export MAKEFLAGS="-j$(nproc)"
+    for ext in "${PECL_EXTENSIONS[@]}"; do
+        echo "   ➤ $ext"
+        if [[ "$ext" == "swoole" ]]; then
+            printf "yes\nyes\nyes\nyes\nyes\nyes\nno\nno\nno\nno\nyes\nno\nno\n" | pecl install -f swoole
+        elif [[ "$ext" == "yaml" ]]; then
+            printf "\n" | pecl install -f yaml
+        elif [[ "$ext" == "apcu" ]]; then
+            pecl install -f apcu
+            echo "extension=apcu.so" > "${INI_DIR}/${version}/mods-available/apcu.ini"
+            phpenmod -v "$version" apcu || true
+            echo "   ✅ apcu habilitado"
+            continue
+        else
+            pecl install -f "$ext" || { echo "   ⚠️ falha no PECL/$ext"; continue; }
         fi
-
-        echo " Gerando pool socket ISPConfig para PHP $version..."
-        children=$(calculate_children)
-        MAX_CHILDREN=$children
-        MAX_SPARE=$(( children / 2 ))
-
-        envsubst < ./php/pools.d/ispconfig.conf.template \
-        > /etc/php/${version}/fpm/pool.d/ispconfig-${version}.conf
-
-
-        mkdir -p /var/log/php
-        chown www-data: /var/log/php
-
-        if command -v systemctl >/dev/null; then
-          systemctl enable php${version}-fpm
-          systemctl restart php${version}-fpm
+        EXT_DIR="$(php-config${version} --extension-dir)"
+        SO_FILE="$(find "$EXT_DIR" -maxdepth 1 -type f -name "${ext}*.so" | head -n1)"
+        if [[ -n "$SO_FILE" ]]; then
+            SO_BASENAME="$(basename "$SO_FILE")"
+            echo "extension=$SO_BASENAME" > "${INI_DIR}/${version}/mods-available/${ext}.ini"
+            phpenmod -v "$version" "$ext" || true
+            echo "   ✅ $ext habilitado como $SO_BASENAME"
+        else
+            if php -d extension_dir="$EXT_DIR" -m 2>/dev/null | grep -qi "^$ext\$"; then
+                echo "   ℹ️ $ext já ativo via autodetect"
+            else
+                echo "   ⚠️ $ext não foi encontrado/carregado"
+            fi
         fi
     done
 
-    apt purge -y build-essential pkg-config unzip autoconf automake libtool git cmake
-    apt autoremove -y --purge && apt clean
+    if [ "$INSTALL_IONCUBE" = "yes" ]; then
+        echo "⦿ Instalando ionCube Loader para PHP $version..."
+        IONCUBE_DIR="/opt/ioncube"
+        mkdir -p "$IONCUBE_DIR"
+        curl -fsSL https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz -o /tmp/ioncube.tar.gz
+        tar -xzf /tmp/ioncube.tar.gz -C /opt
+        cp "${IONCUBE_DIR}/ioncube/ioncube_loader_lin_${version}.so" "$(php-config${version} --extension-dir)/"
+        echo "zend_extension=ioncube_loader_lin_${version}.so" > "${INI_DIR}/${version}/mods-available/ioncube.ini"
+        phpenmod -v "$version" ioncube
+    fi
 
-    echo " PHP-FPM multi-versão + ISPConfig + PECL completo instalado!"
+        echo "⦿ Gerando pool ISPConfig para PHP $version..."
+    # Calcula e exporta variáveis para envsubst
+    children=$(calculate_children)
+    export PHP_VERSION="$version"
+    export MAX_CHILDREN="$children"
+    export MAX_SPARE="$(( children / 2 ))"
+    # Substitui placeholders no template
+    envsubst < "./pools.d/ispconfig.conf.template" \
+        > /etc/php/${version}/fpm/pool.d/ispconfig-${version}.conf
+
+    mkdir -p /var/log/php
+    chown www-data: /var/log/php
+    if command -v systemctl >/dev/null 2>&1 && pidof systemd >/dev/null 2>&1; then
+        systemctl restart php${version}-fpm || true
+    elif command -v service >/dev/null 2>&1; then
+        service php${version}-fpm restart || true
+    else
+        echo "ℹ️ Reinicie php${version}-fpm manualmente."
+    fi
+done
+
+echo "➤ Limpando pacotes de compilação..."
+apt purge -y build-essential pkg-config unzip autoconf automake libtool git cmake
+apt autoremove -y --purge && apt clean
+
+echo "✅ PHP-FPM multi-versão + ISPConfig + PECL instalado com sucesso!"

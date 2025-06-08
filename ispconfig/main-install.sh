@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-source /opt/ispconfig-env.sh
+source env.sh
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for step in $(ls -1 ${DIR}/install.d | sort); do

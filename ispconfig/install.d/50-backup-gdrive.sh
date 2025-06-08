@@ -1,6 +1,6 @@
     #!/usr/bin/env bash
     set -euo pipefail
-    source /opt/ispconfig-env.sh
+    source env.sh
 
     echo "Instalando backup cron GDrive..."
     mkdir -p /opt/ispconfig-backup
