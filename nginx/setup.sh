@@ -255,4 +255,5 @@ echo "🧪 Teste final de configuração do NGINX..."
 nginx -t
 
 echo "🚀 Subindo NGINX (daemon off)..."
-exec nginx -g 'daemon off;'
+nginx -g 'daemon off;' &
+echo '✅ NGINX iniciado em background'
