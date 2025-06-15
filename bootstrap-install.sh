@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ $EUID -ne 0 ]]; then
+    echo "This installer must be run as root." >&2
+    exit 1
+fi
+
 apt update
 apt install -y \
   zstd lz4 jq net-tools sysstat \
