@@ -13,10 +13,28 @@ PHP_VERSIONS=(8.2 8.3 8.4)
 EXTENSIONS_COMMON=(bcmath gmp intl gd mbstring xml soap zip curl fileinfo opcache cli common)
 EXTENSIONS_DB=(mysql pgsql sqlite3)
 EXTENSIONS_CACHE=(redis memcached)
-EXTENSIONS_OTHER=(fpm)
-# Removido blackfire do PECL. Se necessário, instale opcionalmente.
-PECL_EXTENSIONS=(xdebug swoole yaml rdkafka mongodb apcu newrelic)
+EXTENSIONS_OTHER=(fpm yaml)
+PECL_EXTENSIONS=(xdebug swoole rdkafka mongodb apcu newrelic)
 INI_DIR="/etc/php"
+
+echo "🧹 Removendo versões antigas de PHP..."
+
+for version in "${PHP_VERSIONS[@]}"; do
+    echo "  ↪ Limpando PHP $version"
+    systemctl stop php${version}-fpm || true
+    apt purge -y "php${version}" "php${version}-*" || true
+    rm -rf "/etc/php/${version}"
+    rm -rf "/usr/lib/php/${version}"
+    rm -f "/etc/apt/sources.list.d/php-sury.list"
+    update-alternatives --remove-all php || true
+    update-alternatives --remove-all phpize || true
+    update-alternatives --remove-all php-config || true
+done
+
+rm -rf /var/log/php
+mkdir -p /var/log/php
+chown www-data: /var/log/php
+
 
 calculate_children() {
     local mem
@@ -61,16 +79,17 @@ for version in "${PHP_VERSIONS[@]}"; do
     echo "⦿ Instalando PHP $version + extensões APT..."
 
     PACKAGES=()
-    for ext in "${EXTENSIONS_COMMON[@]}"; do
+    for ext in "${EXTENSIONS_COMMON[@]}" "${EXTENSIONS_OTHER[@]}"; do
         [[ "$ext" == "imagick" ]] && continue
         PACKAGES+=("php${version}-$ext")
     done
-    for ext in "${EXTENSIONS_DB[@]}" "${EXTENSIONS_CACHE[@]}" "${EXTENSIONS_OTHER[@]}"; do
+    for ext in "${EXTENSIONS_DB[@]}" "${EXTENSIONS_CACHE[@]}"; do
         PACKAGES+=("php${version}-$ext")
     done
-    # instalando grpc via apt, imagick e grpc
     PACKAGES+=("php-imagick" "php${version}-grpc")
-    apt install -y --no-install-recommends "${PACKAGES[@]}"
+    apt install -y --no-install-recommends "${PACKAGES[@]}" || {
+        echo "⚠️ Falha ao instalar alguns pacotes APT para PHP $version, continuando..."
+    }
 
     echo "⦿ Configurando alternativas para PHP $version..."
     update-alternatives --install /usr/bin/php php /usr/bin/php${version} ${version//./}
@@ -103,19 +122,56 @@ opcache.jit_buffer_size=64M
 EOF
     done
 
+    echo "⦿ Verificando e limpando configurações duplicadas apenas para extensões PECL para PHP $version..."
+    for ext in "${PECL_EXTENSIONS[@]}"; do
+        if [ -f "${INI_DIR}/${version}/mods-available/${ext}.ini" ]; then
+            echo "   ℹ️ Removendo configuração existente para $ext..."
+            rm -f "${INI_DIR}/${version}/mods-available/${ext}.ini"
+            rm -f "${INI_DIR}/${version}/cli/conf.d/20-${ext}.ini"
+            rm -f "${INI_DIR}/${version}/fpm/conf.d/20-${ext}.ini"
+        fi
+        for PHP_INI in "$PHP_INI_FPM" "$PHP_INI_CLI"; do
+            [ -f "$PHP_INI" ] && sed -i "/^extension=${ext}\\.so/d" "$PHP_INI"
+            [ -f "$PHP_INI" ] && sed -i "/^extension=$ext/d" "$PHP_INI"
+        done
+    done
+
     echo "⦿ Instalando extensões PECL para PHP $version..."
     export MAKEFLAGS="-j$(nproc)"
     for ext in "${PECL_EXTENSIONS[@]}"; do
         echo "   ➤ $ext"
-        if [[ "$ext" == "swoole" ]]; then
-            printf "yes\nyes\nyes\nyes\nyes\nyes\nno\nno\nno\nno\nyes\nno\nno\n" | pecl install -f swoole
-        elif [[ "$ext" == "yaml" ]]; then
-            printf "\n" | pecl install -f yaml
-        elif [[ "$ext" == "apcu" ]]; then
+        if php${version} -m 2>/dev/null | grep -qi "^${ext}$"; then
+            echo "   ℹ️ $ext já instalado para PHP $version, pulando..."
+            continue
+        fi
+        if apt list --installed 2>/dev/null | grep -q "php${version}-${ext}/"; then
+            echo "   ℹ️ $ext já instalado via APT para PHP $version, pulando..."
+            continue
+        fi
+        if [[ "$ext" == "apcu" ]]; then
             pecl install -f apcu
             echo "extension=apcu.so" > "${INI_DIR}/${version}/mods-available/apcu.ini"
             phpenmod -v "$version" apcu || true
             echo "   ✅ apcu habilitado"
+            continue
+        elif [[ "$ext" == "xdebug" ]]; then
+            echo "   🔁 Resetando xdebug antes da instalação"
+            phpdismod -v "$version" xdebug || true
+            rm -f "${INI_DIR}/${version}/mods-available/xdebug.ini"
+            rm -f "${INI_DIR}/${version}/cli/conf.d/20-xdebug.ini"
+            rm -f "${INI_DIR}/${version}/fpm/conf.d/20-xdebug.ini"
+
+            pecl install -f xdebug
+            EXT_DIR="$(php-config${version} --extension-dir)"
+            SO_FILE="$(find "$EXT_DIR" -maxdepth 1 -type f -name "${ext}*.so" | head -n1)"
+            if [[ -n "$SO_FILE" ]]; then
+                SO_BASENAME="$(basename "$SO_FILE")"
+                echo "zend_extension=$SO_BASENAME" > "${INI_DIR}/${version}/mods-available/xdebug.ini"
+                phpenmod -v "$version" xdebug || true
+                echo "   ✅ xdebug habilitado como zend_extension"
+            else
+                echo "   ⚠️ xdebug não foi encontrado/carregado"
+            fi
             continue
         else
             pecl install -f "$ext" || { echo "   ⚠️ falha no PECL/$ext"; continue; }
@@ -128,7 +184,7 @@ EOF
             phpenmod -v "$version" "$ext" || true
             echo "   ✅ $ext habilitado como $SO_BASENAME"
         else
-            if php -d extension_dir="$EXT_DIR" -m 2>/dev/null | grep -qi "^$ext\$"; then
+            if php${version} -d extension_dir="$EXT_DIR" -m 2>/dev/null | grep -qi "^$ext$"; then
                 echo "   ℹ️ $ext já ativo via autodetect"
             else
                 echo "   ⚠️ $ext não foi encontrado/carregado"
@@ -147,15 +203,22 @@ EOF
         phpenmod -v "$version" ioncube
     fi
 
-        echo "⦿ Gerando pool ISPConfig para PHP $version..."
-    # Calcula e exporta variáveis para envsubst
+    echo "⦿ Desativando o pool default www.conf para PHP $version..."
+    WWW_CONF="/etc/php/${version}/fpm/pool.d/www.conf"
+    if [ -f "$WWW_CONF" ]; then
+        mv "$WWW_CONF" "${WWW_CONF}.disabled"
+        echo "   ✅ Pool padrão www.conf desativado"
+    fi
+
+    echo "⦿ Gerando pool ISPConfig para PHP $version..."
     children=$(calculate_children)
     export PHP_VERSION="$version"
     export MAX_CHILDREN="$children"
     export MAX_SPARE="$(( children / 2 ))"
-    # Substitui placeholders no template
-    envsubst < "./pools.d/ispconfig.conf.template" \
-        > /etc/php/${version}/fpm/pool.d/ispconfig-${version}.conf
+    envsubst '${PHP_VERSION} ${MAX_CHILDREN} ${MAX_SPARE}' \
+    < "./php/pools.d/ispconfig.conf.template" \
+    > /etc/php/${version}/fpm/pool.d/ispconfig-${version}.conf
+    
 
     mkdir -p /var/log/php
     chown www-data: /var/log/php

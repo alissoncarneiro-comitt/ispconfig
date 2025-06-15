@@ -96,6 +96,19 @@ chmod +x bootstrap-install.sh
 sudo ./bootstrap-install.sh
 ```
 
+```bash
+ wsl --list -v
+wsl --unregister Debian
+wsl --install -d Debian
+wsl -d Debian
+```
+
+nano /etc/hosts
+srv.comitt.com.br
+xyzaeeerr1123
+
+hostnamectl set-hostname srv1.dominio.com
+
 > O script detecta automaticamente Debian 11/12 e já aplica ajustes para produção.
 
 ---
