@@ -2,6 +2,11 @@
 set -e
 set -o pipefail
 
+if [[ $EUID -ne 0 ]]; then
+    echo "This installer must be run as root." >&2
+    exit 1
+fi
+
 NGINX_VERSION="1.28.0"
 OPENSSL_VERSION="openssl-3.3.1"
 BUILD_DIR="/tmp/nginx-build"

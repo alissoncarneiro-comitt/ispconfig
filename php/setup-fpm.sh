@@ -2,6 +2,11 @@
 set -e
 set -o pipefail
 
+if [[ $EUID -ne 0 ]]; then
+    echo "This installer must be run as root." >&2
+    exit 1
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 INSTALL_IONCUBE=${INSTALL_IONCUBE:-no}
 
