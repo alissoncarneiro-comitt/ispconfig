@@ -27,6 +27,9 @@ echo "\n Finalizado PHP-FPM"
 echo "\n Otimizando Maria DB..."
 cp -n ./db/50-server-optimized-32gb.cnf /opt/50-server-optimized-32gb.cnf
 
+echo "\n Instalando Redis Server..."
+bash ./db/redis/setup.sh
+
 
 echo "\n\n Executando instalador do ISPConfig..."
 bash ./ispconfig/main-install.sh
