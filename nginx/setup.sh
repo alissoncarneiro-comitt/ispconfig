@@ -308,7 +308,7 @@ cd /etc/nginx/geoip2
 
 # Limpar arquivos existentes para evitar conflitos
 echo "Limpando arquivos GeoIP2 existentes..."
-rm -f GeoIP2-Country.mmdb GeoIP2-Country.mmdb.gz
+rm -f GeoLite2-Country.mmdb GeoLite2-Country.mmdb.gz
 
 GEOIP_URLS=(
     "https://dl.miyuru.lk/geoip/maxmind/country/maxmind.dat.gz"
@@ -322,38 +322,38 @@ for i in "${!GEOIP_URLS[@]}"; do
     echo "Tentativa $((i+1))/${#GEOIP_URLS[@]}: Baixando GeoIP2 de: $url"
 
     # Download com timeout e tentativas limitadas
-    if timeout 60 wget -q --timeout=30 --tries=2 "$url" -O GeoIP2-Country.mmdb.gz.tmp; then
+    if timeout 60 wget -q --timeout=30 --tries=2 "$url" -O GeoLite2-Country.mmdb.gz.tmp; then
         echo "Download concluído, verificando integridade..."
 
         # Verificar se é um arquivo gzip válido
-        if gzip -t GeoIP2-Country.mmdb.gz.tmp 2>/dev/null; then
+        if gzip -t GeoLite2-Country.mmdb.gz.tmp 2>/dev/null; then
             echo "Arquivo gzip válido, movendo para posição final..."
-            mv GeoIP2-Country.mmdb.gz.tmp GeoIP2-Country.mmdb.gz
+            mv GeoLite2-Country.mmdb.gz.tmp GeoLite2-Country.mmdb.gz
 
             # Extrair com força (sobrescrever se existir)
             echo "Extraindo arquivo GeoIP2..."
-            if gzip -df GeoIP2-Country.mmdb.gz; then
+            if gzip -df GeoLite2-Country.mmdb.gz; then
                 # Verificar se o arquivo extraído é válido e não está vazio
-                if [ -f GeoIP2-Country.mmdb ] && [ -s GeoIP2-Country.mmdb ]; then
+                if [ -f GeoLite2-Country.mmdb ] && [ -s GeoLite2-Country.mmdb ]; then
                     echo "✓ GeoIP2 baixado e extraído com sucesso!"
-                    echo "  Tamanho: $(stat -f%z GeoIP2-Country.mmdb 2>/dev/null || stat -c%s GeoIP2-Country.mmdb) bytes"
+                    echo "  Tamanho: $(stat -f%z GeoLite2-Country.mmdb 2>/dev/null || stat -c%s GeoLite2-Country.mmdb) bytes"
                     GEOIP_SUCCESS=true
                     break
                 else
                     echo "✗ Arquivo extraído inválido ou vazio"
-                    rm -f GeoIP2-Country.mmdb
+                    rm -f GeoLite2-Country.mmdb
                 fi
             else
                 echo "✗ Falha na extração do arquivo"
-                rm -f GeoIP2-Country.mmdb.gz
+                rm -f GeoLite2-Country.mmdb.gz
             fi
         else
             echo "✗ Arquivo baixado não é um gzip válido"
-            rm -f GeoIP2-Country.mmdb.gz.tmp
+            rm -f GeoLite2-Country.mmdb.gz.tmp
         fi
     else
         echo "✗ Falha no download (timeout ou erro de rede)"
-        rm -f GeoIP2-Country.mmdb.gz.tmp
+        rm -f GeoLite2-Country.mmdb.gz.tmp
     fi
 
     # Pequena pausa entre tentativas
@@ -364,7 +364,7 @@ if [ "$GEOIP_SUCCESS" = false ]; then
     echo "⚠️  Todas as tentativas de download do GeoIP2 falharam"
     echo "   Criando arquivo dummy para evitar erros de configuração..."
     # Criar arquivo vazio para não quebrar configurações que referenciam GeoIP
-    touch /etc/nginx/geoip2/GeoIP2-Country.mmdb
+    touch /etc/nginx/geoip2/GeoLite2-Country.mmdb
     cat > /etc/nginx/geoip2/README.txt << 'EOF'
 # GeoIP2 Database Status
 # Status: FAILED - Arquivo dummy criado
@@ -381,8 +381,8 @@ else
 # GeoIP2 Database Status
 # Status: SUCCESS - Database ativa
 # Última atualização: $(date)
-# Arquivo: GeoIP2-Country.mmdb
-# Tamanho: $(stat -f%z GeoIP2-Country.mmdb 2>/dev/null || stat -c%s GeoIP2-Country.mmdb) bytes
+# Arquivo: GeoLite2-Country.mmdb
+# Tamanho: $(stat -f%z GeoLite2-Country.mmdb 2>/dev/null || stat -c%s GeoLite2-Country.mmdb) bytes
 #
 # Para atualizar:
 # cd /etc/nginx/geoip2 && rm -f *.mmdb* && [reexecutar script]
