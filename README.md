@@ -18,6 +18,7 @@ Este projeto provisiona uma stack profissional de hospedagem em servidores Debia
 - Exporters para Prometheus (Node, NGINX, PHP, MariaDB)
 - Dashboard Grafana instalado e pronto para uso
 - Fail2Ban configurado para proteger o stack web
+- Redis Server instalado para cache e filas
 - Arquitetura modular, com scripts reutilizáveis e separados por contexto
 
 ### Público-alvo:
@@ -36,6 +37,7 @@ Este projeto provisiona uma stack profissional de hospedagem em servidores Debia
 - **ISPConfig** com pools otimizados por socket e template NGINX compatível com Laravel
 - **Prometheus + Grafana** com exporters para Node, NGINX, PHP-FPM e MariaDB
 - **Backups via Rclone + GDrive**
+- **Redis Server** instalado para cache e filas
 - Arquitetura modular, clara e reutilizável
 
 ---
@@ -47,6 +49,8 @@ Este projeto provisiona uma stack profissional de hospedagem em servidores Debia
 ├── bootstrap-install.sh       # Instalador principal
 ├── db/
 │   ├── 50-server-optimized-32gb.cnf
+│   └── redis/
+│       └── setup.sh
 ├── nginx/
 │   ├── setup.sh               # Compila e instala NGINX com todos os módulos
 │   ├── conf.d/                # Extras opcionais
